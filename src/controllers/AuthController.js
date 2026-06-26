@@ -59,7 +59,7 @@ class AuthController {
   refresh = asyncHandler(async (req, res) => {
     const { refreshToken } = req.body;
 
-    const result = this._authService.refreshToken(refreshToken);
+    const result = await this._authService.refreshToken(refreshToken);
 
     res.status(200).json({
       success: true,
