@@ -19,8 +19,8 @@ class ApplicationEventBus extends EventEmitter {
     super();
     this.setMaxListeners(50); // Increase from default 10
 
-    // Log unhandled events in development
-    this.on('error', (error) => {
+    // Use super.on() to avoid the wrapped handler (which would swallow context)
+    super.on('error', (error) => {
       logger.error('EventBus error:', { error: error.message, stack: error.stack });
     });
   }

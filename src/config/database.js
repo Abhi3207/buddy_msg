@@ -142,6 +142,13 @@ function getDatabase() {
 
 function closeDatabase() {
   if (db) {
+    // Run PRAGMA optimize before closing — this lets SQLite analyze tables
+    // that would benefit from re-analysis, improving query planner decisions.
+    try {
+      db.pragma('optimize');
+    } catch (err) {
+      logger.warn('PRAGMA optimize failed', { error: err.message });
+    }
     db.close();
     db = null;
     logger.info('Database connection closed');

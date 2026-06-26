@@ -5,3 +5,17 @@ logs/
 .env
 .DS_Store
 Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# npm debug logs
+npm-debug.log*
+
+# OS generated files
+Desktop.ini
+ehthumbs.db

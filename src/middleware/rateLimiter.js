@@ -110,7 +110,7 @@ function rateLimiter(options = {}) {
 
   const keyFn = options.keyFn || ((req) => {
     // Prefer user ID over IP for authenticated requests
-    return req.user?.userId || req.ip || req.connection.remoteAddress;
+    return req.user?.userId || req.ip || req.socket?.remoteAddress;
   });
 
   return (req, res, next) => {

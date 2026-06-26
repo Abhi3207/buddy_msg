@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "lint": "echo 'No linter configured yet. Consider adding ESLint.'"
   },
   "keywords": ["messaging", "websocket", "real-time", "system-design"],
   "author": "",
@@ -22,5 +23,8 @@
     "cors": "^2.8.5",
     "helmet": "^7.1.0",
     "compression": "^1.7.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

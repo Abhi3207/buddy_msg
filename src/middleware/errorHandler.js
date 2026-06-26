@@ -61,6 +61,24 @@ function notFoundHandler(req, res, next) {
  * Global error handler — must have 4 arguments for Express to recognize it.
  */
 function globalErrorHandler(err, req, res, next) {
+  // Handle malformed JSON body (Express throws SyntaxError for bad JSON)
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json(
+      createErrorResponse(400, 'INVALID_JSON', 'Malformed JSON in request body')
+    );
+  }
+
+  // Handle Joi validation errors that bypassed the validation middleware
+  if (err.isJoi) {
+    const details = err.details?.map(d => ({
+      field: d.path.join('.'),
+      message: d.message.replace(/"/g, ''),
+    }));
+    return res.status(400).json(
+      createErrorResponse(400, 'VALIDATION_ERROR', 'Request validation failed', details)
+    );
+  }
+
   // Determine status code
   let statusCode = err.statusCode || err.status || ERROR_STATUS_MAP[err.name] || 500;
   let code = err.code || 'INTERNAL_ERROR';

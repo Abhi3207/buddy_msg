@@ -156,6 +156,13 @@ async function bootstrap() {
     const shutdown = async (signal) => {
       logger.info(`${signal} received. Starting graceful shutdown...`);
 
+      // Force exit after 10 seconds if graceful shutdown stalls
+      const forceExitTimer = setTimeout(() => {
+        logger.error('Graceful shutdown timed out after 10s, forcing exit');
+        process.exit(1);
+      }, 10000);
+      forceExitTimer.unref();
+
       // Stop accepting new connections
       server.close(() => {
         logger.info('HTTP server closed');
@@ -182,6 +189,7 @@ async function bootstrap() {
       eventBus.emit('app:shutdown');
 
       logger.info('Graceful shutdown complete');
+      clearTimeout(forceExitTimer);
       process.exit(0);
     };
 
