@@ -84,10 +84,9 @@ class BaseRepository {
     // Invalidate list caches
     cache.invalidatePrefix(`${this._cachePrefix}:list`);
     
-    // Cache the new record
-    if (data.id) {
-      cache.set(`${this._cachePrefix}:${data.id}`, data);
-    }
+    // Note: We intentionally do NOT cache `data` here because the DB may
+    // generate default values (e.g. datetime('now')) that differ from what
+    // was passed in. The next findById() will read the authoritative row.
 
     return data;
   }
@@ -99,16 +98,15 @@ class BaseRepository {
    * @returns {Object|null} Updated row
    */
   update(id, updates) {
-    const keys = Object.keys(updates);
-    if (keys.length === 0) return this.findById(id);
+    if (Object.keys(updates).length === 0) return this.findById(id);
 
     // Always update the updated_at timestamp
     if (!updates.updated_at) {
       updates.updated_at = new Date().toISOString();
-      keys.push('updated_at');
     }
 
-    const setClause = Object.keys(updates).map(k => `${k} = ?`).join(', ');
+    const keys = Object.keys(updates);
+    const setClause = keys.map(k => `${k} = ?`).join(', ');
     const sql = `UPDATE ${this._tableName} SET ${setClause} WHERE id = ?`;
 
     this._db.prepare(sql).run(...Object.values(updates), id);

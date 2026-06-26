@@ -68,3 +68,14 @@ const config = {
 };
 
 module.exports = config;
+
+// Warn if using default JWT secret (checked after export to avoid circular deps)
+if (config.jwt.secret === 'messaging-system-dev-secret-key-change-in-production') {
+  const isProduction = config.env === 'production';
+  const level = isProduction ? 'error' : 'warn';
+  // Use process.stderr directly to avoid logger circular dependency
+  process.stderr.write(
+    `[${level.toUpperCase()}] JWT secret is set to the default development value. ` +
+    `Set the JWT_SECRET environment variable${isProduction ? ' — this is a CRITICAL security issue in production' : ''}.\n`
+  );
+}

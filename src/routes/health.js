@@ -46,11 +46,13 @@ router.get('/', (req, res) => {
   // --- Message Queue Check ---
   try {
     const mqMetrics = messageQueue.getMetrics();
+    const pending = Object.values(mqMetrics.queueDepths || {}).reduce((a, b) => a + b, 0);
     checks.messageQueue = {
       status: 'healthy',
-      pending: mqMetrics.pendingMessages,
-      processed: mqMetrics.processedMessages,
-      failed: mqMetrics.failedMessages,
+      pending,
+      processed: mqMetrics.processed,
+      failed: mqMetrics.failed,
+      dlqSize: mqMetrics.dlqSize,
     };
   } catch (err) {
     checks.messageQueue = { status: 'unhealthy', error: err.message };

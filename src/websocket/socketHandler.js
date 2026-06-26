@@ -97,6 +97,21 @@ function initializeSocketHandler(io) {
     socket.on(CLIENT_EVENTS.CONVERSATION_JOIN, ({ conversationId }) => {
       if (!conversationId) return;
 
+      // Verify the user is actually a participant before joining the room
+      try {
+        const isParticipant = svc.conversationService.getParticipantIds(conversationId)
+          .includes(userId);
+        if (!isParticipant) {
+          socket.emit(SERVER_EVENTS.ERROR, {
+            message: 'You are not a participant in this conversation',
+          });
+          return;
+        }
+      } catch (err) {
+        socket.emit(SERVER_EVENTS.ERROR, { message: 'Conversation not found' });
+        return;
+      }
+
       socket.join(`conversation:${conversationId}`);
       logger.debug('User joined conversation room', { userId, conversationId });
     });

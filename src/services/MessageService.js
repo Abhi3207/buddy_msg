@@ -86,7 +86,13 @@ class MessageService {
       throw error;
     }
 
-    const result = this._messageRepo.getByConversation(conversationId, options);
+    // Map cursor → before for the repository's cursor-based pagination
+    const repoOptions = {
+      limit: options.limit,
+      before: options.cursor || options.before,
+    };
+
+    const result = this._messageRepo.getByConversation(conversationId, repoOptions);
 
     return {
       messages: result.messages.map(m => m.toJSON()),

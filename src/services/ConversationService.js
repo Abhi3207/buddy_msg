@@ -98,6 +98,14 @@ class ConversationService {
    * Get conversation details.
    */
   getConversation(conversationId, userId) {
+    // Check if conversation exists first
+    const exists = this._conversationRepo.findById(conversationId);
+    if (!exists) {
+      const error = new Error('Conversation not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
     const isParticipant = this._conversationRepo.isParticipant(conversationId, userId);
     if (!isParticipant) {
       const error = new Error('You are not a participant in this conversation');

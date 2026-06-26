@@ -87,7 +87,10 @@ function optionalAuth(req, res, next) {
 
   try {
     const payload = jwt.verify(parts[1], config.jwt.secret);
-    req.user = { userId: payload.userId, username: payload.username };
+    // Only accept access tokens (reject refresh tokens silently)
+    if (payload.type === 'access') {
+      req.user = { userId: payload.userId, username: payload.username };
+    }
   } catch {
     // Silently ignore invalid tokens for optional auth
   }
