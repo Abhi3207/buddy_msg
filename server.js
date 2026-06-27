@@ -1,3 +1,6 @@
+// Load environment variables from .env file before anything else
+require('dotenv').config();
+
 // ============================================================================
 // server.js — Application Entry Point
 // ============================================================================

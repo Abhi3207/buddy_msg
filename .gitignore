@@ -3,6 +3,8 @@ data/
 logs/
 *.db
 .env
+.env.local
+.env.*.local
 .DS_Store
 Thumbs.db
 
@@ -19,3 +21,6 @@ npm-debug.log*
 # OS generated files
 Desktop.ini
 ehthumbs.db
+
+# Stray log files
+*.log

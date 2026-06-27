@@ -141,9 +141,7 @@ class LRUCache {
 }
 
 // Singleton instance
-const cache = new LRUCache(
-  parseInt(process.env.CACHE_MAX_SIZE, 10) || 1000,
-  parseInt(process.env.CACHE_DEFAULT_TTL, 10) || 300
-);
+const config = require('../config');
+const cache = new LRUCache(config.cache.maxSize, config.cache.defaultTTL);
 
 module.exports = { LRUCache, cache };
