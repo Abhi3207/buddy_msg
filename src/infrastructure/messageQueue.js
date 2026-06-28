@@ -212,11 +212,12 @@ class MessageQueue extends EventEmitter {
 }
 
 // Singleton
+const config = require('../config');
 const messageQueue = new MessageQueue({
-  maxRetries: parseInt(process.env.MQ_MAX_RETRIES, 10) || 3,
-  retryDelay: parseInt(process.env.MQ_RETRY_DELAY, 10) || 1000,
-  maxQueueSize: parseInt(process.env.MQ_MAX_SIZE, 10) || 10000,
-  processingInterval: parseInt(process.env.MQ_PROCESSING_INTERVAL, 10) || 100,
+  maxRetries: config.messageQueue.maxRetries,
+  retryDelay: config.messageQueue.retryDelay,
+  maxQueueSize: config.messageQueue.maxQueueSize,
+  processingInterval: config.messageQueue.processingInterval,
 });
 
 module.exports = { MessageQueue, messageQueue };

@@ -86,6 +86,21 @@ class MessageController {
       data: result,
     });
   });
+
+  /**
+   * PATCH /api/v1/messages/:id
+   */
+  edit = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { content } = req.body;
+
+    const message = this._messageService.editMessage(id, req.user.userId, content);
+
+    res.status(200).json({
+      success: true,
+      data: { message },
+    });
+  });
 }
 
 module.exports = MessageController;

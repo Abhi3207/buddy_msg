@@ -3,6 +3,7 @@
 // ============================================================================
 // POST   /api/v1/messages                    — Send message
 // GET    /api/v1/messages/:conversationId     — Get messages (paginated)
+// PATCH  /api/v1/messages/:id                 — Edit message
 // PATCH  /api/v1/messages/:id/read            — Mark as read
 // DELETE /api/v1/messages/:id                 — Soft delete message
 // ============================================================================
@@ -37,6 +38,12 @@ function createMessageRoutes(messageController) {
     '/:id/read',
     validate(schemas.messages.markRead),
     messageController.markAsRead
+  );
+
+  router.patch(
+    '/:id',
+    validate(schemas.messages.edit),
+    messageController.edit
   );
 
   router.delete(

@@ -201,6 +201,14 @@ const schemas = {
         id: Joi.string().uuid().required(),
       }),
     },
+    edit: {
+      params: Joi.object({
+        id: Joi.string().uuid().required(),
+      }),
+      body: Joi.object({
+        content: Joi.string().min(1).max(5000).required(),
+      }),
+    },
   },
 };
 
