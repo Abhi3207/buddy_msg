@@ -65,12 +65,16 @@ function initializeSocketHandler(io) {
     }
   });
 
+  // Set IO instance on notification service once during initialization,
+  // not on every connection
+  const svc = getServices();
+  svc.notificationService.setIO(io);
+
   // -------------------------------------------------------------------------
   // Connection handler
   // -------------------------------------------------------------------------
   io.on('connection', (socket) => {
     const { userId, username } = socket;
-    const svc = getServices();
     const presence = getPresenceService();
 
     logger.info('WebSocket connected', { userId, username, socketId: socket.id });
@@ -80,9 +84,6 @@ function initializeSocketHandler(io) {
 
     // --- Register with presence service ---
     presence.userConnected(userId, socket.id);
-
-    // --- Set the IO instance on notification service ---
-    svc.notificationService.setIO(io);
 
     // --- Send connection confirmation ---
     socket.emit(SERVER_EVENTS.CONNECTED, {
@@ -201,4 +202,4 @@ function initializeSocketHandler(io) {
   logger.info('Socket.IO handler initialized');
 }
 
-module.exports = { initializeSocketHandler };
+module.exports = { initializeSocketHandler, getPresenceService };

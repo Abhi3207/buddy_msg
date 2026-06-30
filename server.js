@@ -166,25 +166,31 @@ async function bootstrap() {
       }, 10000);
       forceExitTimer.unref();
 
-      // Stop accepting new connections
-      server.close(() => {
-        logger.info('HTTP server closed');
-      });
+      // Stop accepting new connections and drain existing ones
+      await Promise.allSettled([
+        new Promise((resolve) => {
+          server.close(() => {
+            logger.info('HTTP server closed');
+            resolve();
+          });
+        }),
+        new Promise((resolve) => {
+          io.close(() => {
+            logger.info('WebSocket server closed');
+            resolve();
+          });
+        }),
+      ]);
 
-      // Close WebSocket connections
-      io.close(() => {
-        logger.info('WebSocket server closed');
-      });
-
-      // Stop message queue
+      // Stop message queue (synchronous)
       messageQueue.stop();
       logger.info('Message queue stopped');
 
-      // Clear cache
+      // Clear cache (synchronous)
       cache.clear();
       logger.info('Cache cleared');
 
-      // Close database
+      // Close database last — after all connections are drained
       closeDatabase();
       logger.info('Database connection closed');
 

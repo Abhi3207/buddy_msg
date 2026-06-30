@@ -31,7 +31,7 @@ class AuthService {
       throw error;
     }
 
-    const existingEmail = this._userRepo.findByEmail(email);
+    const existingEmail = this._userRepo.findByEmail(email.toLowerCase());
     if (existingEmail) {
       const error = new Error('Email already registered');
       error.statusCode = 409;
@@ -60,7 +60,7 @@ class AuthService {
     const refreshToken = this._generateRefreshToken(user);
 
     // Emit event
-    eventBus.emitEvent('user:registered', { userId: user.id, username: user.username });
+    eventBus.emit('user:registered', { userId: user.id, username: user.username });
 
     logger.info('User registered', { userId: user.id, username: user.username });
 
@@ -96,7 +96,7 @@ class AuthService {
     const refreshToken = this._generateRefreshToken(user);
 
     // Emit event
-    eventBus.emitEvent('user:login', { userId: user.id });
+    eventBus.emit('user:login', { userId: user.id });
 
     logger.info('User logged in', { userId: user.id, username: user.username });
 
@@ -131,6 +131,11 @@ class AuthService {
         refreshToken: this._generateRefreshToken(user),
       };
     } catch (err) {
+      // Re-throw if already an operational error with a status code
+      if (err.statusCode) {
+        throw err;
+      }
+      // JWT verification errors (expired, malformed) get a generic message
       const error = new Error('Invalid refresh token');
       error.statusCode = 401;
       throw error;

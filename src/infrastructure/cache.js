@@ -89,15 +89,18 @@ class LRUCache {
    * @param {string} prefix
    */
   invalidatePrefix(prefix) {
-    let count = 0;
+    // Collect matching keys first to avoid mutating Map during iteration
+    const keysToDelete = [];
     for (const key of this._store.keys()) {
       if (key.startsWith(prefix)) {
-        this._store.delete(key);
-        count++;
+        keysToDelete.push(key);
       }
     }
-    if (count > 0) {
-      logger.debug(`Cache: invalidated ${count} keys with prefix "${prefix}"`);
+    for (const key of keysToDelete) {
+      this._store.delete(key);
+    }
+    if (keysToDelete.length > 0) {
+      logger.debug(`Cache: invalidated ${keysToDelete.length} keys with prefix "${prefix}"`);
     }
   }
 
@@ -138,10 +141,35 @@ class LRUCache {
       evictions: this._metrics.evictions,
     };
   }
+
+  /**
+   * Remove all expired entries from the cache.
+   * Called periodically to prevent memory leaks from entries that are set
+   * but never read (and thus never lazily evicted).
+   */
+  _sweepExpired() {
+    const now = Date.now();
+    const keysToDelete = [];
+    for (const [key, entry] of this._store) {
+      if (entry.expiresAt && now > entry.expiresAt) {
+        keysToDelete.push(key);
+      }
+    }
+    for (const key of keysToDelete) {
+      this._store.delete(key);
+    }
+    if (keysToDelete.length > 0) {
+      logger.debug(`Cache: swept ${keysToDelete.length} expired entries`);
+    }
+  }
 }
 
 // Singleton instance
 const config = require('../config');
 const cache = new LRUCache(config.cache.maxSize, config.cache.defaultTTL);
+
+// Periodic sweep of expired entries every 60 seconds to prevent memory leaks
+const sweepTimer = setInterval(() => cache._sweepExpired(), 60 * 1000);
+sweepTimer.unref(); // Don't prevent process exit
 
 module.exports = { LRUCache, cache };

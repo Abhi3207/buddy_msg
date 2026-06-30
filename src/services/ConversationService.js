@@ -73,7 +73,7 @@ class ConversationService {
 
     const conversation = this._conversationRepo.findByIdWithParticipants(conversationData.id);
 
-    eventBus.emitEvent('conversation:created', {
+    eventBus.emit('conversation:created', {
       conversationId: conversationData.id,
       participantIds,
     });
@@ -146,7 +146,7 @@ class ConversationService {
 
     this._conversationRepo.addParticipant(conversationId, newUserId);
 
-    eventBus.emitEvent('conversation:updated', { conversationId, action: 'participant_added', userId: newUserId });
+    eventBus.emit('conversation:updated', { conversationId, action: 'participant_added', userId: newUserId });
 
     logger.info('Participant added', { conversationId, newUserId });
 

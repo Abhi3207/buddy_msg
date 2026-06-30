@@ -106,6 +106,7 @@ class MessageRepository extends BaseRepository {
         WHERE conversation_id = ? 
           AND sender_id != ?
           AND status != 'read'
+          AND is_deleted = 0
           AND created_at <= (SELECT created_at FROM messages WHERE id = ?)
       `;
       params = [conversationId, userId, upToMessageId];
@@ -116,6 +117,7 @@ class MessageRepository extends BaseRepository {
         WHERE conversation_id = ? 
           AND sender_id != ?
           AND status != 'read'
+          AND is_deleted = 0
       `;
       params = [conversationId, userId];
     }

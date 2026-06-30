@@ -39,11 +39,12 @@ class TokenBucket {
 
     // Refill tokens based on elapsed time
     const elapsed = now - bucket.lastRefill;
-    const tokensToAdd = Math.floor(elapsed / this._refillIntervalMs) * this._maxTokens;
-    bucket.tokens = Math.min(this._maxTokens, bucket.tokens + tokensToAdd);
-
-    if (tokensToAdd > 0) {
-      bucket.lastRefill = now;
+    const intervalsElapsed = Math.floor(elapsed / this._refillIntervalMs);
+    if (intervalsElapsed > 0) {
+      const tokensToAdd = intervalsElapsed * this._maxTokens;
+      bucket.tokens = Math.min(this._maxTokens, bucket.tokens + tokensToAdd);
+      // Advance lastRefill by exactly the consumed intervals to preserve sub-interval time
+      bucket.lastRefill += intervalsElapsed * this._refillIntervalMs;
     }
 
     if (bucket.tokens > 0) {
@@ -51,7 +52,7 @@ class TokenBucket {
       return { allowed: true, remaining: bucket.tokens, retryAfterMs: 0 };
     }
 
-    const retryAfterMs = this._refillIntervalMs - elapsed;
+    const retryAfterMs = this._refillIntervalMs - (now - bucket.lastRefill);
     return { allowed: false, remaining: 0, retryAfterMs: Math.max(0, retryAfterMs) };
   }
 

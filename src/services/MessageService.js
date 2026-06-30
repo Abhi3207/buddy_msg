@@ -59,7 +59,7 @@ class MessageService {
     this._notificationService.notifyNewMessage(message, participantIds, senderId);
 
     // Emit event
-    eventBus.emitEvent('message:sent', {
+    eventBus.emit('message:sent', {
       messageId: message.id,
       conversationId,
       senderId,
@@ -127,7 +127,7 @@ class MessageService {
       }
     }
 
-    eventBus.emitEvent('message:read', { conversationId, userId, messageId });
+    eventBus.emit('message:read', { conversationId, userId, messageId });
 
     return { markedCount: count };
   }
@@ -164,13 +164,16 @@ class MessageService {
       throw error;
     }
 
-    const updated = this._messageRepo.update(messageId, {
+    this._messageRepo.update(messageId, {
       content: newContent.trim(),
       is_edited: 1,
     });
 
+    // Return the full message with sender info for a proper API response
+    const updated = this._messageRepo.findByIdWithSender(messageId);
+
     logger.info('Message edited', { messageId, userId });
-    return updated;
+    return updated ? updated.toJSON() : null;
   }
 }
 

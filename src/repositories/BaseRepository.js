@@ -11,6 +11,9 @@
 const { cache } = require('../infrastructure/cache');
 const logger = require('../infrastructure/logger');
 
+// Regex to validate column names: only alphanumeric + underscores allowed
+const SAFE_COLUMN_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
 class BaseRepository {
   /**
    * @param {import('better-sqlite3').Database} db
@@ -21,6 +24,20 @@ class BaseRepository {
     this._db = db;
     this._tableName = tableName;
     this._cachePrefix = cachePrefix;
+  }
+
+  /**
+   * Validate that all column names are safe for SQL interpolation.
+   * Prevents SQL injection via dynamically-constructed queries.
+   * @param {string[]} columns
+   * @throws {Error} If any column name contains unsafe characters
+   */
+  _validateColumns(columns) {
+    for (const col of columns) {
+      if (!SAFE_COLUMN_RE.test(col)) {
+        throw new Error(`Invalid column name: "${col}". Column names must be alphanumeric with underscores only.`);
+      }
+    }
   }
 
   /**
@@ -54,6 +71,11 @@ class BaseRepository {
     const { limit = 50, offset = 0, orderBy = 'created_at', order = 'DESC' } = options;
     
     const keys = Object.keys(conditions);
+    this._validateColumns([...keys, orderBy]);
+
+    // Validate sort direction
+    const safeOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
     const whereClause = keys.length > 0
       ? `WHERE ${keys.map(k => `${k} = ?`).join(' AND ')}`
       : '';
@@ -62,7 +84,7 @@ class BaseRepository {
     const sql = `
       SELECT * FROM ${this._tableName} 
       ${whereClause}
-      ORDER BY ${orderBy} ${order}
+      ORDER BY ${orderBy} ${safeOrder}
       LIMIT ? OFFSET ?
     `;
 
@@ -76,6 +98,8 @@ class BaseRepository {
    */
   create(data) {
     const keys = Object.keys(data);
+    this._validateColumns(keys);
+
     const placeholders = keys.map(() => '?').join(', ');
     const sql = `INSERT INTO ${this._tableName} (${keys.join(', ')}) VALUES (${placeholders})`;
     
@@ -106,12 +130,14 @@ class BaseRepository {
     }
 
     const keys = Object.keys(updates);
+    this._validateColumns(keys);
+
     const setClause = keys.map(k => `${k} = ?`).join(', ');
     const sql = `UPDATE ${this._tableName} SET ${setClause} WHERE id = ?`;
 
     this._db.prepare(sql).run(...Object.values(updates), id);
 
-    // Invalidate cache
+    // Invalidate cache before re-fetching to ensure we get the fresh row
     cache.delete(`${this._cachePrefix}:${id}`);
     cache.invalidatePrefix(`${this._cachePrefix}:list`);
 
@@ -137,6 +163,10 @@ class BaseRepository {
    */
   count(conditions = {}) {
     const keys = Object.keys(conditions);
+    if (keys.length > 0) {
+      this._validateColumns(keys);
+    }
+
     const whereClause = keys.length > 0
       ? `WHERE ${keys.map(k => `${k} = ?`).join(' AND ')}`
       : '';

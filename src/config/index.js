@@ -79,3 +79,12 @@ if (config.jwt.secret === 'messaging-system-dev-secret-key-change-in-production'
     `Set the JWT_SECRET environment variable${isProduction ? ' — this is a CRITICAL security issue in production' : ''}.\n`
   );
 }
+
+// Warn if NODE_ENV is not a recognized value
+const VALID_ENVS = ['development', 'production', 'test'];
+if (!VALID_ENVS.includes(config.env)) {
+  process.stderr.write(
+    `[WARN] NODE_ENV="${config.env}" is not a recognized value. ` +
+    `Expected one of: ${VALID_ENVS.join(', ')}. Defaulting behavior to development.\n`
+  );
+}

@@ -40,28 +40,61 @@ class ConversationRepository extends BaseRepository {
       LIMIT ? OFFSET ?
     `).all(userId, limit, offset);
 
-    // Enrich each conversation with participants and unread count
+    if (conversations.length === 0) {
+      cache.set(cacheKey, [], 30);
+      return [];
+    }
+
+    // Batch-fetch participants for all conversations in a single query
+    const convIds = conversations.map(c => c.id);
+    const placeholders = convIds.map(() => '?').join(',');
+
+    const allParticipants = this._db.prepare(`
+      SELECT u.id, u.username, u.display_name, u.avatar_url, u.status, cp.role, cp.conversation_id
+      FROM conversation_participants cp
+      JOIN users u ON cp.user_id = u.id
+      WHERE cp.conversation_id IN (${placeholders})
+    `).all(...convIds);
+
+    // Group participants by conversation_id
+    const participantsByConv = new Map();
+    for (const p of allParticipants) {
+      if (!participantsByConv.has(p.conversation_id)) {
+        participantsByConv.set(p.conversation_id, []);
+      }
+      participantsByConv.get(p.conversation_id).push({
+        id: p.id,
+        username: p.username,
+        displayName: p.display_name,
+        avatarUrl: p.avatar_url,
+        status: p.status,
+        role: p.role,
+      });
+    }
+
+    // Batch-fetch last_read_message_id for the current user across all conversations
+    const allLastReads = this._db.prepare(`
+      SELECT conversation_id, last_read_message_id
+      FROM conversation_participants
+      WHERE user_id = ? AND conversation_id IN (${placeholders})
+    `).all(userId, ...convIds);
+
+    const lastReadByConv = new Map();
+    for (const lr of allLastReads) {
+      lastReadByConv.set(lr.conversation_id, lr.last_read_message_id);
+    }
+
+    // Enrich each conversation
     const result = conversations.map(conv => {
-      const participants = this._db.prepare(`
-        SELECT u.id, u.username, u.display_name, u.avatar_url, u.status, cp.role
-        FROM conversation_participants cp
-        JOIN users u ON cp.user_id = u.id
-        WHERE cp.conversation_id = ?
-      `).all(conv.id);
-
-      // Get unread count
-      const lastReadId = this._db.prepare(`
-        SELECT last_read_message_id FROM conversation_participants
-        WHERE conversation_id = ? AND user_id = ?
-      `).get(conv.id, userId);
-
+      // Calculate unread count
       let unreadCount = 0;
-      if (lastReadId && lastReadId.last_read_message_id) {
+      const lastReadId = lastReadByConv.get(conv.id);
+      if (lastReadId) {
         unreadCount = this._db.prepare(`
           SELECT COUNT(*) as count FROM messages
           WHERE conversation_id = ? AND sender_id != ?
             AND created_at > (SELECT created_at FROM messages WHERE id = ?)
-        `).get(conv.id, userId, lastReadId.last_read_message_id).count;
+        `).get(conv.id, userId, lastReadId).count;
       } else {
         unreadCount = this._db.prepare(`
           SELECT COUNT(*) as count FROM messages
@@ -71,14 +104,7 @@ class ConversationRepository extends BaseRepository {
 
       const conversation = new Conversation({
         ...conv,
-        participants: participants.map(p => ({
-          id: p.id,
-          username: p.username,
-          displayName: p.display_name,
-          avatarUrl: p.avatar_url,
-          status: p.status,
-          role: p.role,
-        })),
+        participants: participantsByConv.get(conv.id) || [],
         unreadCount,
       });
 

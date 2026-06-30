@@ -23,6 +23,7 @@ const SCHEMA = `
   PRAGMA journal_mode = WAL;
   PRAGMA foreign_keys = ON;
   PRAGMA busy_timeout = 5000;
+  PRAGMA secure_delete = ON;
 
   -- ========================================================================
   -- Users Table
@@ -97,6 +98,9 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
   CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
   CREATE INDEX IF NOT EXISTS idx_messages_conversation_created ON messages(conversation_id, created_at);
+
+  -- Composite index to speed up findDirectConversation JOIN
+  CREATE INDEX IF NOT EXISTS idx_cp_conversation_user ON conversation_participants(conversation_id, user_id);
 `;
 
 // ============================================================================

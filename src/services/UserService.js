@@ -29,7 +29,6 @@ class UserService {
    * Update user profile.
    */
   updateProfile(userId, updates) {
-    const allowedFields = ['display_name', 'avatar_url'];
     const filtered = {};
     
     if (updates.displayName !== undefined) filtered.display_name = updates.displayName;
@@ -69,7 +68,7 @@ class UserService {
    */
   setUserStatus(userId, status) {
     this._userRepo.updateStatus(userId, status);
-    eventBus.emitEvent('user:status-changed', { userId, status });
+    eventBus.emit('user:status-changed', { userId, status });
     logger.debug('User status changed', { userId, status });
   }
 

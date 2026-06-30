@@ -12,8 +12,17 @@ const config = require('../config');
 
 // Ensure log directory exists
 const logDir = config.logging.dir;
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir, { recursive: true });
+let logDirAvailable = false;
+try {
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+  }
+  logDirAvailable = true;
+} catch (err) {
+  // Fall back to console-only logging if directory creation fails
+  process.stderr.write(
+    `[WARN] Could not create log directory "${logDir}": ${err.message}. Falling back to console-only logging.\n`
+  );
 }
 
 // Custom format for console output
@@ -33,15 +42,16 @@ const fileFormat = winston.format.combine(
   winston.format.json()
 );
 
-const logger = winston.createLogger({
-  level: config.logging.level,
-  defaultMeta: { service: 'messaging-system' },
-  transports: [
-    // Console transport — human-readable
-    new winston.transports.Console({
-      format: consoleFormat,
-    }),
-    // File transport — structured JSON for log aggregation
+const transports = [
+  // Console transport — human-readable
+  new winston.transports.Console({
+    format: consoleFormat,
+  }),
+];
+
+// File transports — only added if log directory is available
+if (logDirAvailable) {
+  transports.push(
     new winston.transports.File({
       filename: path.join(logDir, 'error.log'),
       level: 'error',
@@ -55,7 +65,13 @@ const logger = winston.createLogger({
       maxsize: 10 * 1024 * 1024, // 10MB
       maxFiles: 5,
     }),
-  ],
+  );
+}
+
+const logger = winston.createLogger({
+  level: config.logging.level,
+  defaultMeta: { service: 'messaging-system' },
+  transports,
 });
 
 // Add HTTP-level logging for request tracking

@@ -30,6 +30,8 @@ class MessageQueue extends EventEmitter {
     this._handlers = new Map();
     // Processing timer
     this._timer = null;
+    // Guard flag to prevent overlapping _processQueues calls
+    this._processing = false;
     // Metrics
     this._metrics = {
       enqueued: 0,
@@ -121,50 +123,70 @@ class MessageQueue extends EventEmitter {
    * @private
    */
   async _processQueues() {
-    for (const [topic, queue] of this._queues) {
-      if (queue.length === 0) continue;
+    // Prevent overlapping processing when handlers take longer than the interval
+    if (this._processing) return;
+    this._processing = true;
 
-      const handlers = this._handlers.get(topic);
-      if (!handlers || handlers.length === 0) continue;
+    try {
+      for (const [topic, queue] of this._queues) {
+        if (queue.length === 0) continue;
 
-      // Process one message per tick per topic (prevents starvation)
-      const message = queue.shift();
-      
-      try {
-        for (const handler of handlers) {
-          await handler(message.payload);
-        }
-        this._metrics.processed++;
-        this.emit('message:processed', message);
-      } catch (error) {
-        message.retries++;
+        const handlers = this._handlers.get(topic);
+        if (!handlers || handlers.length === 0) continue;
+
+        // Process one message per tick per topic (prevents starvation)
+        const message = queue.shift();
         
-        if (message.retries < message.maxRetries) {
-          // Retry with exponential backoff
-          const delay = this._retryDelay * Math.pow(2, message.retries - 1);
-          setTimeout(() => {
-            queue.push(message);
-          }, delay);
+        try {
+          for (const handler of handlers) {
+            await handler(message.payload);
+          }
+          this._metrics.processed++;
+          this.emit('message:processed', message);
+        } catch (error) {
+          message.retries++;
           
-          logger.warn(`MessageQueue: retrying message ${message.id} (attempt ${message.retries})`, {
-            topic, error: error.message
-          });
-        } else {
-          // Send to dead-letter queue
-          this._dlq.push({
-            ...message,
-            error: error.message,
-            deadLetteredAt: Date.now(),
-          });
-          this._metrics.failed++;
-          this._metrics.deadLettered++;
-          this.emit('message:dead-lettered', message);
-          
-          logger.error(`MessageQueue: message ${message.id} moved to DLQ`, {
-            topic, error: error.message, retries: message.retries
-          });
+          if (message.retries < message.maxRetries) {
+            // Retry with exponential backoff, respecting queue size limits
+            const delay = this._retryDelay * Math.pow(2, message.retries - 1);
+            setTimeout(() => {
+              if (queue.length < this._maxQueueSize) {
+                queue.push(message);
+              } else {
+                // Queue is full — send to DLQ instead of silently dropping
+                this._dlq.push({
+                  ...message,
+                  error: 'Queue full during retry',
+                  deadLetteredAt: Date.now(),
+                });
+                this._metrics.failed++;
+                this._metrics.deadLettered++;
+                logger.warn(`MessageQueue: retry for ${message.id} dropped (queue full)`, { topic });
+              }
+            }, delay);
+            
+            logger.warn(`MessageQueue: retrying message ${message.id} (attempt ${message.retries})`, {
+              topic, error: error.message
+            });
+          } else {
+            // Send to dead-letter queue
+            this._dlq.push({
+              ...message,
+              error: error.message,
+              deadLetteredAt: Date.now(),
+            });
+            this._metrics.failed++;
+            this._metrics.deadLettered++;
+            this.emit('message:dead-lettered', message);
+            
+            logger.error(`MessageQueue: message ${message.id} moved to DLQ`, {
+              topic, error: error.message, retries: message.retries
+            });
+          }
         }
       }
+    } finally {
+      this._processing = false;
     }
   }
 
